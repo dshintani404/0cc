@@ -1,4 +1,5 @@
 #!/bin/bash
+
 try(){
 	expected="$1"
 	input="$2"
@@ -18,7 +19,10 @@ try(){
 
 try 0 0
 try 24 24
-try 21 "22-4+3"
 try 21 "22 - 4 + 3"
+try 47 "5 + 6 * 7"
+try 15 "5 * (9 - 6)"
+try 4 "(3+5) /2"
 
 echo OK
+

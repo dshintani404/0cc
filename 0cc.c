@@ -2,10 +2,24 @@
 #include<stdlib.h>
 #include<ctype.h>
 
+
+int pos = 0;
+
 enum {
 	TK_NUM = 256,
 	TK_EOF
 };
+
+enum {
+    ND_NUM = 256
+};
+
+typedef struct Node{
+    int type;
+    struct Node* lhs;
+    struct Node* rhs;
+    int value;
+} Node;
 
 typedef struct{
 	int type;
@@ -13,7 +27,30 @@ typedef struct{
 	int value;
 } Token;
 
-Token token[100];
+Token tokens[100];
+
+Node* new_node(int type, Node* lhs, Node* rhs) {
+    Node* node = malloc(sizeof(Node));
+    if (node != NULL){
+        node->type = type;
+        node->lhs = lhs;
+        node->rhs = rhs;
+    }
+    return node;
+}
+
+Node* new_node_num(int value) {
+    Node* node = malloc(sizeof(Node));
+    if (node != NULL){
+        node->type = ND_NUM;
+        node->value = value;
+    }
+    return node;
+}
+
+Node* add();
+Node* mul();
+Node* term();
 
 void tokenize(char* p){
 	int i = 0;
@@ -23,18 +60,18 @@ void tokenize(char* p){
 			continue;
 		}
 
-		if(*p == '+' || *p == '-') {
-			token[i].type = *p;
-			token[i].input = p;
+		if(*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')') {
+			tokens[i].type = *p;
+			tokens[i].input = p;
 			i++;
 			p++;
 			continue;
 		}
 
 		if(isdigit(*p)) {
-			token[i].type = TK_NUM;
-			token[i].input = p;
-			token[i].value = strtol(p, &p, 10);
+			tokens[i].type = TK_NUM;
+			tokens[i].input = p;
+			tokens[i].value = strtol(p, &p, 10);
 			i++;
 			continue;	
 		}
@@ -43,51 +80,98 @@ void tokenize(char* p){
         exit(1);
 	}
 
-	token[i].type = TK_EOF;
-	token[i].input = "";
+	tokens[i].type = TK_EOF;
+	tokens[i].input = "";
 }
 
 void error(int i) {
-	fprintf(stderr, "不適切な入力：'%s'\n", token[i].input);
+	fprintf(stderr, "不適切な入力：'%s'\n", tokens[i].input);
 	exit(1);
+}
+
+int consume(int type){
+  if (tokens[pos].type != type) return 0;
+  pos++;
+  return 1;
+}
+
+Node* term(){
+  if (consume('(')) {
+    Node* node = add();
+    if(!consume(')')) error(pos);
+    return node;
+  }
+  return new_node_num(tokens[pos++].value);
+}
+
+Node* mul(){
+  Node* node = term();
+
+  for(;;){
+    if (consume('*')) node = new_node('*', node, term());
+    else if (consume('/')) node = new_node('/', node, term()); 
+    else return node;
+  }
+}
+
+Node* add(){
+  Node* node = mul();
+  
+  for(;;){
+    if (consume('+')) node = new_node('+', node, mul());
+    else if (consume('-')) node = new_node('-', node, mul()); 
+    else return node;
+  }
+}
+
+void gen(Node* node){
+  if(node->type == ND_NUM){
+    printf("    push %d\n", node->value);
+    return;
+  }
+
+  gen(node->lhs);
+  gen(node->rhs);
+
+  printf("    pop rdi\n");
+  printf("    pop rax\n");
+
+  switch (node->type){
+    case '+':
+      printf("    add rax, rdi\n");
+      break;
+    case '-':
+      printf("    sub rax, rdi\n");
+      break;
+    case '*':
+      printf("    mul rdi\n");
+      break;
+    case '/':
+      printf("    mov rdx, 0\n");
+      printf("    div rdi\n");
+  }
+    
+  printf("    push rax\n");
 }
 
 int main(int argc, char **argv) {
 	if (argc != 2){
-		fprintf(stderr, "引数の個数が正しくありません\n");
+		fprintf(stderr, "invalid numbers of args\n");
 		return 1;
 	}
 
 	tokenize(argv[1]);
+  
+  Node* node = add();
 
 	printf(".intel_syntax noprefix\n");
 	printf(".global _main\n");
 	printf("_main:\n");
 
-    if (token[0].type != TK_NUM) error(0);
-	printf("	mov rax, %d\n", token[0].value);
-
-    int i = 1;
-	while(token[i].type != TK_EOF) {
-		if(token[i].type == '+') {
-			i++;
-            if (token[i].type != TK_NUM) error(i);
-			printf("	add rax, %d\n", token[i].value);
-            i++;
-			continue;
-		}
-
-		if(token[i].type == '-') {
-			i++;
-            if (token[i].type != TK_NUM) error(i);
-			printf("	sub rax, %d\n", token[i].value);
-			i++;
-            continue;	
-		}
-
-        error(i);
-	}
-
-	printf("	ret\n");
-	return 0;
+  gen(node);
+    
+  printf("    pop rax\n");
+  printf("	ret\n");
+	
+  return 0;
 }
