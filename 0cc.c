@@ -157,12 +157,18 @@ Node* term(Vector* tokens){
   else return new_node_num(token->value);
 }
 
+Node* unary(Vector* tokens) {
+  if(consume(tokens, '+')) return term(tokens);
+  if(consume(tokens, '-')) return new_node('-', new_node_num(0), term(tokens));
+  return term(tokens);
+}
+
 Node* mul(Vector* tokens){
-  Node* node = term(tokens);
+  Node* node = unary(tokens);
 
   for(;;){
-    if (consume(tokens, '*')) node = new_node('*', node, term(tokens));
-    else if (consume(tokens, '/')) node = new_node('/', node, term(tokens)); 
+    if (consume(tokens, '*')) node = new_node('*', node, unary(tokens));
+    else if (consume(tokens, '/')) node = new_node('/', node, unary(tokens)); 
     else return node;
   }
 }
