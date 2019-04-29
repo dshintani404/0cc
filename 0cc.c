@@ -7,11 +7,13 @@ int pos = 0;
 
 enum {
 	TK_NUM = 256,
-	TK_EOF
+  TK_IDENT,
+  TK_EOF
 };
 
 enum {
-    ND_NUM = 256
+    ND_NUM = 256,
+    ND_IDENT
 };
 
 typedef struct Node {
@@ -19,6 +21,7 @@ typedef struct Node {
     struct Node* lhs;
     struct Node* rhs;
     int value;
+    char name;
 } Node;
 
 typedef struct {
@@ -68,7 +71,18 @@ Node* new_node_num(int value) {
     return node;
 }
 
+Node* new_node_var(int value) {
+    Node* node = malloc(sizeof(Node));
+    if (node != NULL){
+        node->type = ND_IDENT;
+        node->value = value;
+    }
+    return node;
+}
+
 void runtest();
+
+Node* code[100];
 
 Node* add();
 Node* mul();
@@ -83,8 +97,8 @@ void tokenize(Vector* tokens, char* p){
 			continue;
 		}
 
-		if(*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')') {
-			token->type = *p;
+		if( *p=='+' || *p=='-' || *p=='*' || *p=='/' || *p=='(' || *p==')' || *p==';' || *p=='=' ) {
+      token->type = *p;
 			token->input = p;
       vec_push(tokens, token);
 			p++;
@@ -99,6 +113,14 @@ void tokenize(Vector* tokens, char* p){
 			continue;	
 		}
 
+    if ('a' <= *p && *p <= 'z') {
+      token->type = TK_IDENT;
+      token->input = p;
+      vec_push(tokens, token);
+      p++;
+      continue;
+    }
+
 		fprintf(stderr, "トークナイズできません: %s\n", p);
         exit(1);
 	}
@@ -106,7 +128,7 @@ void tokenize(Vector* tokens, char* p){
   Token* token = malloc(sizeof(Token));
   
 	token->type = TK_EOF;
-	token->input = "";
+  token->input = p;
   vec_push(tokens, token);
 }	
 
@@ -117,8 +139,9 @@ void error(Vector* tokens, int i) {
 }
 
 int consume(Vector* tokens, int type){
-   Token* token = (Token*)tokens->data[pos];
-	 if (token->type != type) return 0;
+  Token* token = (Token*)tokens->data[pos];
+  if (token->type != type) return 0;
+  
   pos++;
   return 1;
 }
@@ -129,8 +152,9 @@ Node* term(Vector* tokens){
     if(!consume(tokens, ')')) error(tokens, pos);
     return node;
   }
-  Token* token = (Token*)tokens->data[pos++];	
-  return new_node_num(token->value);
+  Token* token = (Token*)tokens->data[pos++];
+  if (token->type == TK_IDENT) return new_node_var(token->value);
+  else return new_node_num(token->value);
 }
 
 Node* mul(Vector* tokens){
@@ -153,34 +177,94 @@ Node* add(Vector* tokens){
   }
 }
 
+Node* assign(Vector* tokens) {
+  Node* node = add(tokens);
+
+  while(consume(tokens, '='))
+    node = new_node('=', node, assign(tokens));
+  
+  return node;
+}
+
+Node* stmt(Vector* tokens) {
+  Node* node = assign(tokens);
+  if(!consume(tokens, ';')){
+    fprintf(stderr, "';'ではないトークンです\n");
+  }
+
+  return node;
+}
+
+void program(Vector* tokens) {
+  int i = 0;
+  Token* token = tokens->data[pos];
+
+  while(token->type != TK_EOF) {
+    code[i++] = stmt(tokens);
+    token = tokens->data[pos];
+  }
+
+  code[i] = NULL;
+}
+
+void gen_lval(Node* node) {
+  if (node->type != ND_IDENT){
+    fprintf(stderr, "代入の左辺値が変数ではありません\n");
+    exit(1);
+  }
+ 
+  int offset = ('z' - node->name + 1) * 8;
+  printf("  mov rax, rbp\n");
+  printf("  sub rax, %d\n", offset);
+  printf("  push rax\n");
+}
+
 void gen(Node* node){
   if(node->type == ND_NUM){
-    printf("    push %d\n", node->value);
+    printf("  push %d\n", node->value);
     return;
+  }
+
+  if(node->type == ND_IDENT) {
+    gen_lval(node);
+    printf("  pop rax\n");
+    printf("  mov rax, [rax]\n");
+    printf("  push rax\n");
+    return;
+  }
+
+  if (node->type == '=') {
+    gen_lval(node->lhs);
+    gen(node->rhs);
+
+    printf("  pop rdi\n");
+    printf("  pop rax\n");
+    printf("  mov [rax], rdi\n");
+    printf("  push rdi\n");
   }
 
   gen(node->lhs);
   gen(node->rhs);
 
-  printf("    pop rdi\n");
-  printf("    pop rax\n");
+  printf("  pop rdi\n");
+  printf("  pop rax\n");
 
   switch (node->type){
     case '+':
-      printf("    add rax, rdi\n");
+      printf("  add rax, rdi\n");
       break;
     case '-':
-      printf("    sub rax, rdi\n");
+      printf("  sub rax, rdi\n");
       break;
     case '*':
-      printf("    mul rdi\n");
+      printf("  mul rdi\n");
       break;
     case '/':
-      printf("    mov rdx, 0\n");
-      printf("    div rdi\n");
+      printf("  mov rdx, 0\n");
+      printf("  div rdi\n");
   }
     
-  printf("    push rax\n");
+  printf("  push rax\n");
 }
 
 int main(int argc, char **argv) {
@@ -196,17 +280,25 @@ int main(int argc, char **argv) {
 
 	Vector* tokens = new_vector();
   tokenize(tokens, argv[1]);
-  
-  Node* node = add(tokens);
+
+  program(tokens);
 
 	printf(".intel_syntax noprefix\n");
 	printf(".global _main\n");
 	printf("_main:\n");
 
-  gen(node);
-    
-  printf("    pop rax\n");
-  printf("	ret\n");
+  printf("  push rbp\n");
+  printf("  mov rbp, rsp\n");
+  printf("  sub rsp, 208\n");
+  
+  for(int i=0; code[i]; i++) {
+    gen(code[i]);
+    printf("  pop rax\n");
+  }
+  
+  printf("  mov rsp, rbp\n");
+  printf("  pop rbp\n");
+  printf("  ret\n");
 	
   return 0;
 }

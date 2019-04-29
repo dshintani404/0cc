@@ -8,7 +8,6 @@ try(){
 	gcc -o tmp tmp.s
 	./tmp
 	actual="$?"
-
 	if [ "$expected" = "$actual" ]; then
 		echo "$input => $actual"
 	else
@@ -17,12 +16,13 @@ try(){
 	fi
 }
 
-try 0 0
-try 24 24
-try 21 "22 - 4 + 3"
-try 47 "5 + 6 * 7"
-try 15 "5 * (9 - 6)"
-try 4 "(3+5) /2"
+try "0" "0;"
+try "24" "24;"
+try "21" "22 - 4 + 3;"
+try "47" "5 + 6 * 7;"
+try "15" "5 * (9 - 6);"
+try "4" "(3+5) /2;"
+try "4" "a=3;a+1;"
 
 echo OK
 
