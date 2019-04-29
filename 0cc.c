@@ -1,7 +1,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<ctype.h>
-
+#include<string.h>
 
 int pos = 0;
 
@@ -14,20 +14,40 @@ enum {
     ND_NUM = 256
 };
 
-typedef struct Node{
+typedef struct Node {
     int type;
     struct Node* lhs;
     struct Node* rhs;
     int value;
 } Node;
 
-typedef struct{
+typedef struct {
 	int type;
 	char* input;
 	int value;
 } Token;
 
-Token tokens[100];
+typedef struct {
+  void** data;
+  int capacity;
+  int len;
+} Vector;
+
+Vector* new_vector() {
+  Vector* vec = malloc(sizeof(Vector));
+  vec->data = malloc(sizeof(void*) * 16);
+  vec->capacity = 16;
+  vec->len = 0;
+  return vec;
+}
+
+void vec_push(Vector* vec, void* elem) {
+  if (vec->capacity == vec->len) {
+    vec->capacity *= 2;
+    vec->data = realloc(vec->data, sizeof(void*) * vec->capacity);
+  }
+  vec->data[vec->len++] = elem;
+}
 
 Node* new_node(int type, Node* lhs, Node* rhs) {
     Node* node = malloc(sizeof(Node));
@@ -48,78 +68,87 @@ Node* new_node_num(int value) {
     return node;
 }
 
+void runtest();
+
 Node* add();
 Node* mul();
 Node* term();
 
-void tokenize(char* p){
-	int i = 0;
+void tokenize(Vector* tokens, char* p){
 	while(*p) {
-		if(isspace(*p)) {
+	  Token* token = malloc(sizeof(Token));
+
+    if(isspace(*p)) {
 			p++;
 			continue;
 		}
 
 		if(*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')') {
-			tokens[i].type = *p;
-			tokens[i].input = p;
-			i++;
+			token->type = *p;
+			token->input = p;
+      vec_push(tokens, token);
 			p++;
 			continue;
 		}
 
-		if(isdigit(*p)) {
-			tokens[i].type = TK_NUM;
-			tokens[i].input = p;
-			tokens[i].value = strtol(p, &p, 10);
-			i++;
+    if(isdigit(*p)) {
+			token->type = TK_NUM;
+			token->input = p;
+			token->value = strtol(p, &p, 10);
+      vec_push(tokens, token);
 			continue;	
 		}
 
 		fprintf(stderr, "トークナイズできません: %s\n", p);
         exit(1);
 	}
+	
+  Token* token = malloc(sizeof(Token));
+  
+	token->type = TK_EOF;
+	token->input = "";
+  vec_push(tokens, token);
+}	
 
-	tokens[i].type = TK_EOF;
-	tokens[i].input = "";
-}
-
-void error(int i) {
-	fprintf(stderr, "不適切な入力：'%s'\n", tokens[i].input);
+void error(Vector* tokens, int i) {
+  Token* token = (Token*)tokens->data[i];
+	fprintf(stderr, "不適切な入力：'%s'\n", token->input);
 	exit(1);
 }
 
-int consume(int type){
-  if (tokens[pos].type != type) return 0;
+int consume(Vector* tokens, int type){
+   Token* token = (Token*)tokens->data[pos];
+	 if (token->type != type) return 0;
   pos++;
   return 1;
 }
 
-Node* term(){
-  if (consume('(')) {
-    Node* node = add();
-    if(!consume(')')) error(pos);
+Node* term(Vector* tokens){
+  if (consume(tokens, '(')) {
+    Node* node = add(tokens);
+    if(!consume(tokens, ')')) error(tokens, pos);
     return node;
   }
-  return new_node_num(tokens[pos++].value);
+  Token* token = (Token*)tokens->data[pos++];	
+  return new_node_num(token->value);
 }
 
-Node* mul(){
-  Node* node = term();
+Node* mul(Vector* tokens){
+  Node* node = term(tokens);
 
   for(;;){
-    if (consume('*')) node = new_node('*', node, term());
-    else if (consume('/')) node = new_node('/', node, term()); 
+    if (consume(tokens, '*')) node = new_node('*', node, term(tokens));
+    else if (consume(tokens, '/')) node = new_node('/', node, term(tokens)); 
     else return node;
   }
 }
 
-Node* add(){
-  Node* node = mul();
+Node* add(Vector* tokens){
+  Node* node = mul(tokens);
   
   for(;;){
-    if (consume('+')) node = new_node('+', node, mul());
-    else if (consume('-')) node = new_node('-', node, mul()); 
+    if (consume(tokens, '+')) node = new_node('+', node, mul(tokens));
+    else if (consume(tokens, '-')) node = new_node('-', node, mul(tokens)); 
     else return node;
   }
 }
@@ -160,9 +189,15 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	tokenize(argv[1]);
+  if (strncmp(argv[1], "-test", 5) == 0) {
+    runtest();
+    return 0;
+  }
+
+	Vector* tokens = new_vector();
+  tokenize(tokens, argv[1]);
   
-  Node* node = add();
+  Node* node = add(tokens);
 
 	printf(".intel_syntax noprefix\n");
 	printf(".global _main\n");
@@ -175,3 +210,25 @@ int main(int argc, char **argv) {
 	
   return 0;
 }
+
+// test for vector
+int expect(int line, int expected, int actual) {
+  if(expected == actual) return 0;
+  fprintf(stderr, "%d: %d expected, but got %d\n", line, expected, actual);
+  return 1;
+} 
+
+void runtest() {
+  Vector* vec = new_vector();
+  expect(__LINE__, 0, vec->len);
+
+  for(int i=0;i<100;i++) vec_push(vec, (void*)(size_t)i);
+  
+  expect(__LINE__, 100, vec->len);
+  expect(__LINE__, 0, (int)vec->data[0]);
+  expect(__LINE__, 50, (int)vec->data[50]);
+  expect(__LINE__, 99, (int)vec->data[99]);
+
+  printf("OK\n");
+}
+
