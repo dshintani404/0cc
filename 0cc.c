@@ -7,13 +7,12 @@ int pos = 0;
 
 enum {
 	TK_NUM = 256,
-  TK_IDENT,
-  TK_EOF
+  TK_EQ, TK_NE, TK_LE, TK_GE, TK_IDENT, TK_EOF, TK_RETURN
 };
 
 enum {
-    ND_NUM = 256,
-    ND_IDENT
+  ND_NUM = 256,
+  ND_EQ, ND_NE, ND_LE, ND_IDENT
 };
 
 typedef struct Node {
@@ -52,41 +51,11 @@ void vec_push(Vector* vec, void* elem) {
   vec->data[vec->len++] = elem;
 }
 
-Node* new_node(int type, Node* lhs, Node* rhs) {
-    Node* node = malloc(sizeof(Node));
-    if (node != NULL){
-        node->type = type;
-        node->lhs = lhs;
-        node->rhs = rhs;
-    }
-    return node;
-}
-
-Node* new_node_num(int value) {
-    Node* node = malloc(sizeof(Node));
-    if (node != NULL){
-        node->type = ND_NUM;
-        node->value = value;
-    }
-    return node;
-}
-
-Node* new_node_var(int value) {
-    Node* node = malloc(sizeof(Node));
-    if (node != NULL){
-        node->type = ND_IDENT;
-        node->value = value;
-    }
-    return node;
-}
-
 void runtest();
 
 Node* code[100];
 
-Node* add();
-Node* mul();
-Node* term();
+Node* equality();
 
 void tokenize(Vector* tokens, char* p){
 	while(*p) {
@@ -97,7 +66,40 @@ void tokenize(Vector* tokens, char* p){
 			continue;
 		}
 
-		if( *p=='+' || *p=='-' || *p=='*' || *p=='/' || *p=='(' || *p==')' || *p==';' || *p=='=' ) {
+    if (strncmp(p, "==", 2) == 0) {
+      token->type = TK_EQ;
+      token->input = p;
+      vec_push(tokens, token);
+	    p = p + 2;
+      continue;
+    }
+
+    if (strncmp(p, "!=", 2) == 0) {
+      token->type = TK_NE;
+      token->input = p;
+      vec_push(tokens, token);
+	    p = p + 2;
+      continue;
+    }
+
+    if (strncmp(p, "<=", 2) == 0) {
+      token->type = TK_LE;
+      token->input = p;
+      vec_push(tokens, token);
+	    p = p + 2;
+      continue;
+    }
+
+    if (strncmp(p, ">=", 2) == 0) {
+      token->type = TK_GE;
+      token->input = p;
+      vec_push(tokens, token);
+	    p = p + 2;
+      continue;
+    }
+
+		if( *p=='+' || *p=='-' || *p=='*' || *p=='/'|| *p=='(' || *p==')'
+        || *p==';' || *p=='=' || *p=='<'|| *p=='>' ) {
       token->type = *p;
 			token->input = p;
       vec_push(tokens, token);
@@ -146,15 +148,52 @@ int consume(Vector* tokens, int type){
   return 1;
 }
 
+Node* new_node(int type, Node* lhs, Node* rhs) {
+    Node* node = malloc(sizeof(Node));
+    if (node != NULL){
+        node->type = type;
+        node->lhs = lhs;
+        node->rhs = rhs;
+    }
+    return node;
+}
+
+Node* new_node_num(int value) {
+    Node* node = malloc(sizeof(Node));
+    if (node != NULL){
+        node->type = ND_NUM;
+        node->value = value;
+    }
+    return node;
+}
+
+Node* new_node_var(int value) {
+    Node* node = malloc(sizeof(Node));
+    if (node != NULL){
+        node->type = ND_IDENT;
+        node->value = value;
+    }
+    return node;
+}
+
 Node* term(Vector* tokens){
   if (consume(tokens, '(')) {
-    Node* node = add(tokens);
-    if(!consume(tokens, ')')) error(tokens, pos);
+    Node* node = equality(tokens);
+
+    if(!consume(tokens, ')')) {
+      fprintf(stderr, "開きかっこに対応する閉じかっこがありません\n");
+      error(tokens, pos);
+    }
+   
     return node;
   }
+
   Token* token = (Token*)tokens->data[pos++];
   if (token->type == TK_IDENT) return new_node_var(token->value);
-  else return new_node_num(token->value);
+  if(token->type == TK_NUM) return new_node_num(token->value);
+
+  fprintf(stderr, "数値・変数・かっこ以外のトークンです\n");
+  return new_node_num(token->value);
 }
 
 Node* unary(Vector* tokens) {
@@ -183,8 +222,30 @@ Node* add(Vector* tokens){
   }
 }
 
-Node* assign(Vector* tokens) {
+Node* relational(Vector* tokens) {
   Node* node = add(tokens);
+
+  for(;;) {
+    if(consume(tokens, TK_LE)) node = new_node(ND_LE, node, add(tokens));
+    else if (consume(tokens, TK_GE)) node = new_node(ND_LE, add(tokens), node);
+    else if (consume(tokens, '<')) node = new_node('<', node, add(tokens));
+    else if (consume(tokens, '>')) node = new_node('<', add(tokens), node);
+    else return node;
+  }
+}
+
+Node* equality(Vector* tokens) {
+  Node* node = relational(tokens);
+
+  for(;;){
+    if (consume(tokens, TK_EQ)) node = new_node(ND_EQ, node, relational(tokens));
+    else if (consume(tokens, TK_NE)) node = new_node(ND_NE, node, relational(tokens));
+    else return node;
+  }
+}
+
+Node* assign(Vector* tokens) {
+  Node* node = equality(tokens);
 
   while(consume(tokens, '='))
     node = new_node('=', node, assign(tokens));
@@ -251,20 +312,47 @@ void gen(Node* node){
 
   gen(node->lhs);
   gen(node->rhs);
-
+  
   printf("  pop rdi\n");
   printf("  pop rax\n");
-
+ 
   switch (node->type){
+    case ND_EQ:
+      printf("  cmp rax, rdi\n");
+      printf("  sete al\n");
+      printf("  movzx rax, al\n");
+      break;
+
+    case ND_NE:
+      printf("  cmp rax, rdi\n");
+      printf("  setne al\n");
+      printf("  movzx rax, al\n");
+      break;
+
+    case ND_LE:
+      printf("  cmp rax, rdi\n");
+      printf("  setle al\n");
+      printf("  movzx rax, al\n");
+      break;
+  
+    case '<':
+      printf("  cmp rax, rdi\n");
+      printf("  setl al\n");
+      printf("  movzx rax, al\n");
+      break;
+
     case '+':
       printf("  add rax, rdi\n");
       break;
+
     case '-':
       printf("  sub rax, rdi\n");
       break;
+
     case '*':
       printf("  mul rdi\n");
       break;
+
     case '/':
       printf("  mov rdx, 0\n");
       printf("  div rdi\n");
@@ -286,7 +374,7 @@ int main(int argc, char **argv) {
 
 	Vector* tokens = new_vector();
   tokenize(tokens, argv[1]);
-
+ 
   program(tokens);
 
 	printf(".intel_syntax noprefix\n");
