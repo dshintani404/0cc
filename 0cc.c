@@ -12,7 +12,7 @@ enum {
 
 enum {
   ND_NUM = 256,
-  ND_EQ, ND_NE, ND_LE, ND_IDENT
+  ND_EQ, ND_NE, ND_LE, ND_IDENT, ND_RETURN
 };
 
 typedef struct Node {
@@ -57,6 +57,10 @@ Node* code[100];
 
 Node* equality();
 
+int is_alnum(char c) {
+  return ('a' <= c && c <= 'z') ||  ('A' <= c && c <= 'Z') ||  ('0' <= c && c <= '9') ||  (c == '_'); 
+}
+
 void tokenize(Vector* tokens, char* p){
 	while(*p) {
 	  Token* token = malloc(sizeof(Token));
@@ -65,6 +69,14 @@ void tokenize(Vector* tokens, char* p){
 			p++;
 			continue;
 		}
+
+    if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
+      token->type = TK_RETURN;
+      token->input = p;
+      vec_push(tokens, token);
+	    p = p + 6;
+      continue;
+    }
 
     if (strncmp(p, "==", 2) == 0) {
       token->type = TK_EQ;
@@ -254,7 +266,16 @@ Node* assign(Vector* tokens) {
 }
 
 Node* stmt(Vector* tokens) {
-  Node* node = assign(tokens);
+  Node* node;
+
+  if (consume(tokens, TK_RETURN)) {
+    node = malloc(sizeof(Node));
+    node->type = ND_RETURN;
+    node->lhs = assign(tokens);
+  } else {
+    node = assign(tokens);
+  }
+
   if(!consume(tokens, ';')){
     fprintf(stderr, "';'ではないトークンです\n");
   }
@@ -287,6 +308,15 @@ void gen_lval(Node* node) {
 }
 
 void gen(Node* node){
+  if(node->type == ND_RETURN) {
+    gen(node->lhs);
+    printf("  pop rax\n");
+    printf("  mov rsp, rbp\n");
+    printf("  pop rbp\n");
+    printf("  ret\n");
+    return;
+  }
+
   if(node->type == ND_NUM){
     printf("  push %d\n", node->value);
     return;
