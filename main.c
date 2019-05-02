@@ -15,9 +15,10 @@ int main(int argc, char **argv) {
   }
 
 	Vector* tokens = new_vector();
+  Map* map = new_map();
   tokenize(tokens, argv[1]);
  
-  program(tokens);
+  program(tokens, map);
 
 	printf(".intel_syntax noprefix\n");
 	printf(".global _main\n");
@@ -28,7 +29,7 @@ int main(int argc, char **argv) {
   printf("  sub rsp, 208\n");
   
   for(int i=0; code[i]; i++) {
-    gen(code[i]);
+    gen(code[i], map);
     printf("  pop rax\n");
   }
   

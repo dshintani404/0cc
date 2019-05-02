@@ -41,8 +41,9 @@ try "10" "-10+10*2;"
 try "4" "(3+5) /2;"
 try "3" "(3 == 3) + 2;"
 try "4" "a=3;a+1;"
-try "4" "return 4;"
 try "11" "b=5*6-8;return b/2;"
+try "5" "a=3;b=2;return a+b;"
+try "5" "ab=3;dvd=2;return ab+dvd;"
 
 echo OK
 
