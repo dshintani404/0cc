@@ -44,6 +44,7 @@ try "4" "a=3;a+1;"
 try "11" "b=5*6-8;return b/2;"
 try "5" "a=3;b=2;return a+b;"
 try "5" "ab=3;dvd=2;return ab+dvd;"
+try "2" "a=0;while (a<2) a=a+1;return a;"
 
 echo OK
 

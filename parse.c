@@ -15,6 +15,14 @@ void tokenize(Vector* tokens, char* p){
 			continue;
 		}
 
+    if (strncmp(p, "while", 5) == 0 && !is_alnum(p[6])) {
+      token->type = TK_WHILE;
+      token->input = p;
+      vec_push(tokens, token);
+      p = p + 6;
+      continue;
+    }
+
     if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
       token->type = TK_RETURN;
       token->input = p;
@@ -154,17 +162,17 @@ Node* term(Vector* tokens, Map* map){
   if (consume(tokens, '(')) {
     Node* node = equality(tokens, map);
 
-    if(!consume(tokens, ')')) {
+    if (!consume(tokens, ')')) {
       fprintf(stderr, "開きかっこに対応する閉じかっこがありません\n");
       error(tokens, pos);
     }
-   
+    
     return node;
   }
 
   Token* token = (Token*)tokens->data[pos++];
   if (token->type == TK_IDENT) return new_node_var(token->name, map);
-  if(token->type == TK_NUM) return new_node_num(token->value);
+  if (token->type == TK_NUM) return new_node_num(token->value);
 
   fprintf(stderr, "数値・変数・かっこ以外のトークンです\n");
   return new_node_num(token->value);
@@ -230,10 +238,29 @@ Node* assign(Vector* tokens, Map* map) {
 Node* stmt(Vector* tokens, Map* map) {
   Node* node;
 
-  if (consume(tokens, TK_RETURN)) {
+  if (consume(tokens, TK_WHILE)) {
+    if (consume(tokens, '(')) {
+      node = malloc(sizeof(Node));
+      node->type = ND_WHILE;
+      node->lhs = equality(tokens, map);
+
+      if (!consume(tokens, ')')) {
+        fprintf(stderr, "開きかっこに対応する閉じかっこがありません\n");
+        error(tokens, pos);
+      }
+    
+      node->rhs = stmt(tokens, map);
+      return node;
+    }
+
+    fprintf(stderr, "whileの後の開きかっこがありません\n");
+    error(tokens, pos);
+
+  } else if (consume(tokens, TK_RETURN)) {
     node = malloc(sizeof(Node));
     node->type = ND_RETURN;
     node->lhs = assign(tokens, map);
+
   } else {
     node = assign(tokens, map);
   }
