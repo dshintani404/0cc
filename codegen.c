@@ -13,6 +13,29 @@ void gen_lval(Node* node, Map* map) {
 }
 
 void gen(Node* node, Map* map){
+  if (node->type == ND_IF_WITHOUT_ELSE) {
+    gen(node->condition, map);
+    printf("    pop rax\n");
+    printf("    cmp rax, 0\n");
+    printf("    je .LendXXX\n");
+    gen(node->lhs, map);
+    printf("  .LendXXX:\n");
+    return;
+  }
+
+  if (node->type == ND_IF_WITH_ELSE) {
+    gen(node->condition, map);
+    printf("    pop rax\n");
+    printf("    cmp rax, 0\n");
+    printf("    je .LelseXXX\n");
+    gen(node->lhs, map);
+    printf("    jmp .LendXXX\n");
+    printf("  .LelseXXX:\n");
+    gen(node->rhs, map);
+    printf("  .LendXXX:\n");
+    return;
+  }
+
   if(node->type == ND_FOR) {
     gen(node->lhs, map);
     printf("  .LbeginXXX:\n");

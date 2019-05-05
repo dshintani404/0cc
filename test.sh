@@ -47,5 +47,6 @@ try "5" "a=3;b=2;return a+b;"
 try "5" "ab=3;dvd=2;return ab+dvd;"
 try "2" "a=0;while (a<2) a=a+1;return a;"
 try "2" "a=0; for(i=0; i<2; i=i+1) a = a + 1;return a;"
+try "5" "a=3;if(a==3) return a+2;"
+try "6" "a=3;if (a==2) return 2;else return a+3;"
 echo OK
-

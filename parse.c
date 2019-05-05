@@ -2,6 +2,8 @@
 
 Node* assign(Vector* tokens, Map* map);
 
+int val_num = 0;
+
 void error(Vector* tokens, int i) {
   Token* token = (Token*)tokens->data[i];
 	fprintf(stderr, "不適切な入力：'%s'\n", token->input);
@@ -35,7 +37,6 @@ Node* new_node_num(int value) {
     return node;
 }
 
-int val_num = 0;
 Node* new_node_var(char* name, Map* map) {
   void* offset = map_get(map, name);
   if (offset == NULL) {
@@ -165,6 +166,30 @@ Node* stmt(Vector* tokens, Map* map) {
     fprintf(stderr, "forの直後に開きかっこがありません\n");
     error(tokens, pos);
 
+  } else if (consume(tokens, TK_IF)) {
+    if (consume(tokens, '(')) {
+      node = malloc(sizeof(Node));
+      node->type = ND_IF_WITHOUT_ELSE;
+      node->condition = equality(tokens, map);
+
+      if (!consume(tokens, ')')) {
+        fprintf(stderr, "開きかっこに対応する閉じかっこがありません:if\n");
+        error(tokens, pos);
+      }
+    
+      node->lhs = stmt(tokens, map);
+
+      if(consume(tokens, TK_ELSE)) {
+        node->type = ND_IF_WITH_ELSE;
+        node->rhs = stmt(tokens, map);
+      }
+
+      return node;
+    }
+
+    fprintf(stderr, "whileの後の開きかっこがありません\n");
+    error(tokens, pos);
+ 
   } else if (consume(tokens, TK_WHILE)) {
     if (consume(tokens, '(')) {
       node = malloc(sizeof(Node));

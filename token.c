@@ -13,6 +13,22 @@ void tokenize(Vector* tokens, char* p){
 			continue;
 		}
 
+    if (strncmp(p, "if", 2) == 0 && !is_alnum(p[2])) {
+      token->type = TK_IF;
+      token->input = p;
+      vec_push(tokens, token);
+      p = p + 2;
+      continue;
+    }
+
+    if (strncmp(p, "else", 4) == 0 && !is_alnum(p[4])) {
+      token->type = TK_ELSE;
+      token->input = p;
+      vec_push(tokens, token);
+      p = p + 4;
+      continue;
+    }
+
     if (strncmp(p, "while", 5) == 0 && !is_alnum(p[5])) {
       token->type = TK_WHILE;
       token->input = p;
