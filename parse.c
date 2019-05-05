@@ -1,111 +1,6 @@
 #include"0cc.h"
 
-Node* equality(Vector* tokens, Map* map);
-
-int is_alnum(char c) {
-  return ('a' <= c && c <= 'z') ||  ('A' <= c && c <= 'Z') ||  ('0' <= c && c <= '9') ||  (c == '_'); 
-}
-
-void tokenize(Vector* tokens, char* p){
-	while(*p) {
-	  Token* token = malloc(sizeof(Token));
-
-    if(isspace(*p)) {
-			p++;
-			continue;
-		}
-
-    if (strncmp(p, "while", 5) == 0 && !is_alnum(p[6])) {
-      token->type = TK_WHILE;
-      token->input = p;
-      vec_push(tokens, token);
-      p = p + 6;
-      continue;
-    }
-
-    if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
-      token->type = TK_RETURN;
-      token->input = p;
-      vec_push(tokens, token);
-	    p = p + 6;
-      continue;
-    }
-
-    if (strncmp(p, "==", 2) == 0) {
-      token->type = TK_EQ;
-      token->input = p;
-      vec_push(tokens, token);
-	    p = p + 2;
-      continue;
-    }
-
-    if (strncmp(p, "!=", 2) == 0) {
-      token->type = TK_NE;
-      token->input = p;
-      vec_push(tokens, token);
-	    p = p + 2;
-      continue;
-    }
-
-    if (strncmp(p, "<=", 2) == 0) {
-      token->type = TK_LE;
-      token->input = p;
-      vec_push(tokens, token);
-	    p = p + 2;
-      continue;
-    }
-
-    if (strncmp(p, ">=", 2) == 0) {
-      token->type = TK_GE;
-      token->input = p;
-      vec_push(tokens, token);
-	    p = p + 2;
-      continue;
-    }
-
-		if( *p=='+' || *p=='-' || *p=='*' || *p=='/'|| *p=='(' || *p==')'
-        || *p==';' || *p=='=' || *p=='<'|| *p=='>' ) {
-      token->type = *p;
-			token->input = p;
-      vec_push(tokens, token);
-			p++;
-			continue;
-		}
-
-    if(isdigit(*p)) {
-			token->type = TK_NUM;
-			token->input = p;
-			token->value = strtol(p, &p, 10);
-      vec_push(tokens, token);
-			continue;	
-		}
-
-    if (is_alnum(*p)) {
-      p++;
-      int cnt = 1;
-      while (is_alnum(*p)) {
-        cnt++;
-        p++;
-      }
-
-      token->type = TK_IDENT;
-      token->name = malloc(sizeof(char)*cnt);
-      strncpy(token->name, p-cnt, cnt);
-      token->input = p-cnt;
-      vec_push(tokens, token);
-      continue;
-    }
-
-		fprintf(stderr, "トークナイズできません: %s\n", p);
-        exit(1);
-	}
-	
-  Token* token = malloc(sizeof(Token));
-  
-	token->type = TK_EOF;
-  token->input = p;
-  vec_push(tokens, token);
-}	
+Node* assign(Vector* tokens, Map* map);
 
 void error(Vector* tokens, int i) {
   Token* token = (Token*)tokens->data[i];
@@ -160,7 +55,7 @@ Node* new_node_var(char* name, Map* map) {
 
 Node* term(Vector* tokens, Map* map){
   if (consume(tokens, '(')) {
-    Node* node = equality(tokens, map);
+    Node* node = assign(tokens, map);
 
     if (!consume(tokens, ')')) {
       fprintf(stderr, "開きかっこに対応する閉じかっこがありません\n");
@@ -175,7 +70,10 @@ Node* term(Vector* tokens, Map* map){
   if (token->type == TK_NUM) return new_node_num(token->value);
 
   fprintf(stderr, "数値・変数・かっこ以外のトークンです\n");
-  return new_node_num(token->value);
+  error(tokens, pos);
+  // ダミーの返り値で、実際には使われない
+  Node* node;
+  return node;
 }
 
 Node* unary(Vector* tokens, Map* map) {
@@ -237,15 +135,44 @@ Node* assign(Vector* tokens, Map* map) {
 
 Node* stmt(Vector* tokens, Map* map) {
   Node* node;
+  if (consume(tokens, TK_FOR)) {
+    if (consume(tokens, '(')) {
+      node = malloc(sizeof(Node));
+      node->type = ND_FOR;
 
-  if (consume(tokens, TK_WHILE)) {
+      node->lhs = assign(tokens, map);
+      if(!consume(tokens, ';')){
+        fprintf(stderr, "';'ではないトークンです:forの一つ目\n");
+        error(tokens, pos);
+      }
+
+      node->condition = assign(tokens, map);
+      if(!consume(tokens, ';')){
+        fprintf(stderr, "';'ではないトークンです:forの二つ目\n");
+        error(tokens, pos);
+      }
+
+      node->increment = assign(tokens, map);
+      if (!consume(tokens, ')')) {
+        fprintf(stderr, "開きかっこに対応する閉じかっこがありません:for\n");
+        error(tokens, pos);
+      }
+    
+      node->rhs = stmt(tokens, map);
+      return node;
+    }
+
+    fprintf(stderr, "forの直後に開きかっこがありません\n");
+    error(tokens, pos);
+
+  } else if (consume(tokens, TK_WHILE)) {
     if (consume(tokens, '(')) {
       node = malloc(sizeof(Node));
       node->type = ND_WHILE;
       node->lhs = equality(tokens, map);
 
       if (!consume(tokens, ')')) {
-        fprintf(stderr, "開きかっこに対応する閉じかっこがありません\n");
+        fprintf(stderr, "開きかっこに対応する閉じかっこがありません:while\n");
         error(tokens, pos);
       }
     
@@ -265,8 +192,10 @@ Node* stmt(Vector* tokens, Map* map) {
     node = assign(tokens, map);
   }
 
+  // 以下は制御構文以外の場合の共通処理
   if(!consume(tokens, ';')){
     fprintf(stderr, "';'ではないトークンです\n");
+    error(tokens, pos);
   }
 
   return node;

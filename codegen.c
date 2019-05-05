@@ -13,6 +13,20 @@ void gen_lval(Node* node, Map* map) {
 }
 
 void gen(Node* node, Map* map){
+  if(node->type == ND_FOR) {
+    gen(node->lhs, map);
+    printf("  .LbeginXXX:\n");
+    gen(node->condition, map);
+    printf("    pop rax\n");
+    printf("    cmp rax, 0\n");
+    printf("    je .LendXXX\n");
+    gen(node->rhs, map);
+    gen(node->increment, map);
+    printf("    jmp .LbeginXXX\n");
+    printf("  .LendXXX:\n");
+    return;
+  }
+
   if(node->type == ND_WHILE) {
     printf("  .LbeginXXX:\n");
     gen(node->lhs, map);
@@ -55,6 +69,7 @@ void gen(Node* node, Map* map){
     printf("  pop rax\n");
     printf("  mov [rax], rdi\n");
     printf("  push rdi\n");
+    return;
   }
 
   gen(node->lhs, map);
