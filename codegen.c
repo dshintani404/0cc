@@ -13,6 +13,13 @@ void gen_lval(Node* node, Map* map) {
 }
 
 void gen(Node* node, Map* map){
+  if (node->type == ND_BLOCK) {
+    for(int i=0;i<node->block_stmt->len;i++) {
+      gen(node->block_stmt->data[i], map);
+    }
+    return;
+  }
+
   if (node->type == ND_IF_WITHOUT_ELSE) {
     gen(node->condition, map);
     printf("    pop rax\n");

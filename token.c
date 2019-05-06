@@ -86,7 +86,7 @@ void tokenize(Vector* tokens, char* p){
     }
 
 		if( *p=='+' || *p=='-' || *p=='*' || *p=='/'|| *p=='(' || *p==')'
-        || *p==';' || *p=='=' || *p=='<'|| *p=='>' ) {
+        || *p==';' || *p=='=' || *p=='<'|| *p=='>' || *p=='{'|| *p=='}' ) {
       token->type = *p;
 			token->input = p;
       vec_push(tokens, token);

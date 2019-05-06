@@ -1,6 +1,7 @@
 #include"0cc.h"
 
 Node* assign(Vector* tokens, Map* map);
+Node* stmt(Vector* tokens, Map* map);
 
 int val_num = 0;
 
@@ -134,6 +135,20 @@ Node* assign(Vector* tokens, Map* map) {
   return node;
 }
 
+Node* block_items(Vector* tokens, Map* map) {
+  Node* node = malloc(sizeof(Node));
+  node->block_stmt = new_vector();
+  Token* token = tokens->data[pos];
+  node->type = ND_BLOCK;
+
+  while(token->type != '}') {
+    vec_push(node->block_stmt, stmt(tokens, map));
+    token = tokens->data[pos];
+  }
+
+  return node;
+}
+
 Node* stmt(Vector* tokens, Map* map) {
   Node* node;
   if (consume(tokens, TK_FOR)) {
@@ -207,6 +222,15 @@ Node* stmt(Vector* tokens, Map* map) {
 
     fprintf(stderr, "whileの後の開きかっこがありません\n");
     error(tokens, pos);
+
+  } else if (consume(tokens, '{')) {
+    node = block_items(tokens, map);
+    if (!consume(tokens, '}')) {
+      fprintf(stderr, "開きかっこに対応する閉じかっこがありません:ブロック\n");
+      error(tokens, pos);
+    }
+
+    return node;
 
   } else if (consume(tokens, TK_RETURN)) {
     node = malloc(sizeof(Node));

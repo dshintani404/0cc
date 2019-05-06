@@ -49,4 +49,7 @@ try "2" "a=0;while (a<2) a=a+1;return a;"
 try "2" "a=0; for(i=0; i<2; i=i+1) a = a + 1;return a;"
 try "5" "a=3;if(a==3) return a+2;"
 try "6" "a=3;if (a==2) return 2;else return a+3;"
+try "5" "a=2;if (a==2) {a=a+3; return a;}"
+try "5" "a=2;b=3;if (a==2) {a=a+b; return a;}"
+
 echo OK
