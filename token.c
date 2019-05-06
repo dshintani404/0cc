@@ -86,7 +86,7 @@ void tokenize(Vector* tokens, char* p){
     }
 
 		if( *p=='+' || *p=='-' || *p=='*' || *p=='/'|| *p=='(' || *p==')'
-        || *p==';' || *p=='=' || *p=='<'|| *p=='>' || *p=='{'|| *p=='}' ) {
+        || *p==';' || *p=='=' || *p=='<'|| *p=='>' || *p=='{'|| *p=='}' || *p==',') {
       token->type = *p;
 			token->input = p;
       vec_push(tokens, token);
@@ -110,13 +110,18 @@ void tokenize(Vector* tokens, char* p){
         p++;
       }
 
-      token->type = TK_IDENT;
+      if(*p == '(') {
+        token->type = TK_FUNC;
+      } else {
+        token->type = TK_IDENT;
+      }
+
       token->name = malloc(sizeof(char)*cnt);
       strncpy(token->name, p-cnt, cnt);
       token->input = p-cnt;
       vec_push(tokens, token);
       continue;
-    }
+   }
 
 		fprintf(stderr, "トークナイズできません: %s\n", p);
         exit(1);

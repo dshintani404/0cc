@@ -55,6 +55,16 @@ Node* new_node_var(char* name, Map* map) {
   return node;
 }
 
+Node* new_node_func(char* name, Vector* args) {
+    Node* node = malloc(sizeof(Node));
+    if (node != NULL){
+        node->type = ND_FUNC;
+        node->name = name;
+        node->args = args; 
+    }
+    return node;
+}
+
 Node* term(Vector* tokens, Map* map){
   if (consume(tokens, '(')) {
     Node* node = assign(tokens, map);
@@ -70,11 +80,40 @@ Node* term(Vector* tokens, Map* map){
   Token* token = (Token*)tokens->data[pos++];
   if (token->type == TK_IDENT) return new_node_var(token->name, map);
   if (token->type == TK_NUM) return new_node_num(token->value);
+  
+  if (token->type == TK_FUNC) {
+    char* func_name = token->name;
+    if (!consume(tokens, '(')) {
+      fprintf(stderr, "関数の開きかっこがありません\n");
+      error(tokens, pos);
+    }
 
-  fprintf(stderr, "数値・変数・かっこ以外のトークンです\n");
+    Vector* args = new_vector();
+    if(consume(tokens, ')')) return new_node_func(func_name, args);
+    
+    token = (Token*)tokens->data[pos];
+    while (token->type == TK_NUM) {
+      vec_push(args, (void*)(size_t)token->value);
+      pos++;
+      token = (Token*)tokens->data[pos];
+      if(token->type == ',') {
+        pos++;
+        token = (Token*)tokens->data[pos];
+      }
+    }
+
+    if(!consume(tokens, ')')) {
+      fprintf(stderr, "開きかっこに対応する閉じかっこがありません：関数\n");
+      error(tokens, pos);
+    }
+    
+    return new_node_func(func_name, args);
+  }
+
+  fprintf(stderr, "数値・変数・かっこ・関数以外のトークンです\n");
   error(tokens, pos);
   // ダミーの返り値で、実際には使われない
-  Node* node;
+  Node* node = NULL;
   return node;
 }
 
@@ -150,7 +189,7 @@ Node* block_items(Vector* tokens, Map* map) {
 }
 
 Node* stmt(Vector* tokens, Map* map) {
-  Node* node;
+  Node* node = NULL;
   if (consume(tokens, TK_FOR)) {
     if (consume(tokens, '(')) {
       node = malloc(sizeof(Node));

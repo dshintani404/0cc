@@ -1,5 +1,7 @@
 #include"0cc.h"
 
+int stackpoint = 0;
+
 void gen_lval(Node* node, Map* map) {
   if (node->type != ND_IDENT){
     fprintf(stderr, "代入の左辺値が変数ではありません\n");
@@ -10,6 +12,8 @@ void gen_lval(Node* node, Map* map) {
   printf("  mov rax, rbp\n");
   printf("  sub rax, %d\n", offset);
   printf("  push rax\n");
+  
+  stackpoint += 8;
 }
 
 void gen(Node* node, Map* map){
@@ -27,6 +31,8 @@ void gen(Node* node, Map* map){
     printf("    je .LendXXX\n");
     gen(node->lhs, map);
     printf("  .LendXXX:\n");
+    
+    stackpoint -= 8;
     return;
   }
 
@@ -40,6 +46,8 @@ void gen(Node* node, Map* map){
     printf("  .LelseXXX:\n");
     gen(node->rhs, map);
     printf("  .LendXXX:\n");
+
+    stackpoint -= 8;
     return;
   }
 
@@ -54,6 +62,8 @@ void gen(Node* node, Map* map){
     gen(node->increment, map);
     printf("    jmp .LbeginXXX\n");
     printf("  .LendXXX:\n");
+
+    stackpoint -= 8;
     return;
   }
 
@@ -66,6 +76,8 @@ void gen(Node* node, Map* map){
     gen(node->rhs, map);
     printf("    jmp .LbeginXXX\n");
     printf("  .LendXXX:\n");
+
+    stackpoint -= 8;
     return;
   }
 
@@ -80,6 +92,8 @@ void gen(Node* node, Map* map){
 
   if(node->type == ND_NUM){
     printf("  push %d\n", node->value);
+
+    stackpoint += 8;
     return;
   }
 
@@ -91,6 +105,20 @@ void gen(Node* node, Map* map){
     return;
   }
 
+  if(node->type == ND_FUNC){
+    if (node->args->len > 0) {
+      printf("  mov rdi, %d\n", (int)node->args->data[0]);
+      if (node->args->len > 1) {
+        printf("  mov rsi, %d\n", (int)node->args->data[1]);
+      }
+    }
+
+    if(stackpoint % 16 != 0) printf("  sub rsp, 8\n");
+
+    printf("  call _%s\n", node->name);
+    return;
+  }
+
   if (node->type == '=') {
     gen_lval(node->lhs, map);
     gen(node->rhs, map);
@@ -99,6 +127,8 @@ void gen(Node* node, Map* map){
     printf("  pop rax\n");
     printf("  mov [rax], rdi\n");
     printf("  push rdi\n");
+
+    stackpoint -= 8;
     return;
   }
 
@@ -151,5 +181,6 @@ void gen(Node* node, Map* map){
   }
     
   printf("  push rax\n");
+  stackpoint += 8;
 }
 

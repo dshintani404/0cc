@@ -6,13 +6,13 @@
 enum {
 	TK_NUM = 256,
   TK_EQ, TK_NE, TK_LE, TK_GE, TK_IDENT, TK_EOF, TK_RETURN,
-  TK_WHILE, TK_FOR, TK_IF, TK_ELSE
+  TK_WHILE, TK_FOR, TK_IF, TK_ELSE, TK_FUNC
 };
 
 enum {
   ND_NUM = 256,
   ND_EQ, ND_NE, ND_LE, ND_IDENT, ND_RETURN,
-  ND_WHILE, ND_FOR, ND_IF_WITH_ELSE, ND_IF_WITHOUT_ELSE, ND_BLOCK
+  ND_WHILE, ND_FOR, ND_IF_WITH_ELSE, ND_IF_WITHOUT_ELSE, ND_BLOCK, ND_FUNC
 };
 
 typedef struct {
@@ -37,6 +37,7 @@ typedef struct Node {
   struct Node* condition; // for, if
   struct Node* increment; // for
   Vector* block_stmt;
+  Vector* args; // func
 } Node;
 
 typedef struct {
