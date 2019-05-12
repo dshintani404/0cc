@@ -2,7 +2,7 @@
 
 int stackpoint = 0;
 
-void gen_lval(Node* node, Map* map) {
+void gen_lval(Node* node) {
   if (node->type != ND_IDENT){
     fprintf(stderr, "代入の左辺値が変数ではありません\n");
     exit(1);
@@ -16,20 +16,20 @@ void gen_lval(Node* node, Map* map) {
   stackpoint += 8;
 }
 
-void gen(Node* node, Map* map){
+void gen(Node* node){
   if (node->type == ND_BLOCK) {
     for(int i=0;i<node->block_stmt->len;i++) {
-      gen(node->block_stmt->data[i], map);
+      gen(node->block_stmt->data[i]);
     }
     return;
   }
 
   if (node->type == ND_IF_WITHOUT_ELSE) {
-    gen(node->condition, map);
+    gen(node->condition);
     printf("    pop rax\n");
     printf("    cmp rax, 0\n");
     printf("    je .LendXXX\n");
-    gen(node->lhs, map);
+    gen(node->lhs);
     printf("  .LendXXX:\n");
     
     stackpoint -= 8;
@@ -37,14 +37,14 @@ void gen(Node* node, Map* map){
   }
 
   if (node->type == ND_IF_WITH_ELSE) {
-    gen(node->condition, map);
+    gen(node->condition);
     printf("    pop rax\n");
     printf("    cmp rax, 0\n");
     printf("    je .LelseXXX\n");
-    gen(node->lhs, map);
+    gen(node->lhs);
     printf("    jmp .LendXXX\n");
     printf("  .LelseXXX:\n");
-    gen(node->rhs, map);
+    gen(node->rhs);
     printf("  .LendXXX:\n");
 
     stackpoint -= 8;
@@ -52,14 +52,14 @@ void gen(Node* node, Map* map){
   }
 
   if(node->type == ND_FOR) {
-    gen(node->lhs, map);
+    gen(node->lhs);
     printf("  .LbeginXXX:\n");
-    gen(node->condition, map);
+    gen(node->condition);
     printf("    pop rax\n");
     printf("    cmp rax, 0\n");
     printf("    je .LendXXX\n");
-    gen(node->rhs, map);
-    gen(node->increment, map);
+    gen(node->rhs);
+    gen(node->increment);
     printf("    jmp .LbeginXXX\n");
     printf("  .LendXXX:\n");
 
@@ -69,11 +69,11 @@ void gen(Node* node, Map* map){
 
   if(node->type == ND_WHILE) {
     printf("  .LbeginXXX:\n");
-    gen(node->lhs, map);
+    gen(node->lhs);
     printf("    pop rax\n");
     printf("    cmp rax, 0\n");
     printf("    je .LendXXX\n");
-    gen(node->rhs, map);
+    gen(node->rhs);
     printf("    jmp .LbeginXXX\n");
     printf("  .LendXXX:\n");
 
@@ -82,7 +82,7 @@ void gen(Node* node, Map* map){
   }
 
   if(node->type == ND_RETURN) {
-    gen(node->lhs, map);
+    gen(node->lhs);
     printf("  pop rax\n");
     printf("  mov rsp, rbp\n");
     printf("  pop rbp\n");
@@ -98,7 +98,7 @@ void gen(Node* node, Map* map){
   }
 
   if(node->type == ND_IDENT) {
-    gen_lval(node, map);
+    gen_lval(node);
     printf("  pop rax\n");
     printf("  mov rax, [rax]\n");
     printf("  push rax\n");
@@ -120,8 +120,8 @@ void gen(Node* node, Map* map){
   }
 
   if (node->type == '=') {
-    gen_lval(node->lhs, map);
-    gen(node->rhs, map);
+    gen_lval(node->lhs);
+    gen(node->rhs);
 
     printf("  pop rdi\n");
     printf("  pop rax\n");
@@ -132,8 +132,8 @@ void gen(Node* node, Map* map){
     return;
   }
 
-  gen(node->lhs, map);
-  gen(node->rhs, map);
+  gen(node->lhs);
+  gen(node->rhs);
   
   printf("  pop rdi\n");
   printf("  pop rax\n");

@@ -47,9 +47,11 @@ typedef struct {
 
 extern Node* code[100];
 extern int pos;
+extern Map* map;
+extern Vector* tokens;
 
-void gen_lval(Node* node, Map* map);
-void gen(Node* node, Map* map);
+void gen_lval(Node* node);
+void gen(Node* node);
 
 Vector* new_vector();
 void vec_push(Vector* vec, void* elem);
@@ -58,6 +60,6 @@ Map* new_map();
 void map_put(Map* map, char* key, void* val);
 void* map_get(Map* map, char* key);
 
-void tokenize(Vector* tokens, char* p);
-void program(Vector* tokens, Map* map);
+void tokenize(char* p);
+void program();
 void runtest();

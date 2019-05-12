@@ -1,17 +1,17 @@
 #include"0cc.h"
 
-Node* assign(Vector* tokens, Map* map);
-Node* stmt(Vector* tokens, Map* map);
+Node* assign();
+Node* stmt();
 
 int val_num = 0;
 
-void error(Vector* tokens, int i) {
+void error(int i) {
   Token* token = (Token*)tokens->data[i];
 	fprintf(stderr, "不適切な入力：'%s'\n", token->input);
 	exit(1);
 }
 
-int consume(Vector* tokens, int type){
+int consume(int type){
   Token* token = (Token*)tokens->data[pos];
   if (token->type != type) return 0;
   
@@ -38,7 +38,7 @@ Node* new_node_num(int value) {
     return node;
 }
 
-Node* new_node_var(char* name, Map* map) {
+Node* new_node_var(char* name) {
   void* offset = map_get(map, name);
   if (offset == NULL) {
     val_num++;
@@ -65,31 +65,31 @@ Node* new_node_func(char* name, Vector* args) {
     return node;
 }
 
-Node* term(Vector* tokens, Map* map){
-  if (consume(tokens, '(')) {
-    Node* node = assign(tokens, map);
+Node* term(){
+  if (consume('(')) {
+    Node* node = assign();
 
-    if (!consume(tokens, ')')) {
+    if (!consume(')')) {
       fprintf(stderr, "開きかっこに対応する閉じかっこがありません\n");
-      error(tokens, pos);
+      error(pos);
     }
     
     return node;
   }
 
   Token* token = (Token*)tokens->data[pos++];
-  if (token->type == TK_IDENT) return new_node_var(token->name, map);
+  if (token->type == TK_IDENT) return new_node_var(token->name);
   if (token->type == TK_NUM) return new_node_num(token->value);
   
   if (token->type == TK_FUNC) {
     char* func_name = token->name;
-    if (!consume(tokens, '(')) {
+    if (!consume('(')) {
       fprintf(stderr, "関数の開きかっこがありません\n");
-      error(tokens, pos);
+      error(pos);
     }
 
     Vector* args = new_vector();
-    if(consume(tokens, ')')) return new_node_func(func_name, args);
+    if(consume(')')) return new_node_func(func_name, args);
     
     token = (Token*)tokens->data[pos];
     while (token->type == TK_NUM) {
@@ -102,213 +102,213 @@ Node* term(Vector* tokens, Map* map){
       }
     }
 
-    if(!consume(tokens, ')')) {
+    if(!consume(')')) {
       fprintf(stderr, "開きかっこに対応する閉じかっこがありません：関数\n");
-      error(tokens, pos);
+      error(pos);
     }
     
     return new_node_func(func_name, args);
   }
 
   fprintf(stderr, "数値・変数・かっこ・関数以外のトークンです\n");
-  error(tokens, pos);
+  error(pos);
   // ダミーの返り値で、実際には使われない
   Node* node = NULL;
   return node;
 }
 
-Node* unary(Vector* tokens, Map* map) {
-  if(consume(tokens, '+')) return term(tokens, map);
-  if(consume(tokens, '-')) return new_node('-', new_node_num(0), term(tokens, map));
-  return term(tokens, map);
+Node* unary() {
+  if(consume('+')) return term();
+  if(consume('-')) return new_node('-', new_node_num(0), term());
+  return term();
 }
 
-Node* mul(Vector* tokens, Map* map){
-  Node* node = unary(tokens, map);
+Node* mul(){
+  Node* node = unary();
 
   for(;;){
-    if (consume(tokens, '*')) node = new_node('*', node, unary(tokens, map));
-    else if (consume(tokens, '/')) node = new_node('/', node, unary(tokens, map)); 
+    if (consume('*')) node = new_node('*', node, unary());
+    else if (consume('/')) node = new_node('/', node, unary()); 
     else return node;
   }
 }
 
-Node* add(Vector* tokens, Map* map){
-  Node* node = mul(tokens, map);
+Node* add(){
+  Node* node = mul();
   
   for(;;){
-    if (consume(tokens, '+')) node = new_node('+', node, mul(tokens, map));
-    else if (consume(tokens, '-')) node = new_node('-', node, mul(tokens, map)); 
+    if (consume('+')) node = new_node('+', node, mul());
+    else if (consume('-')) node = new_node('-', node, mul()); 
     else return node;
   }
 }
 
-Node* relational(Vector* tokens, Map* map) {
-  Node* node = add(tokens, map);
+Node* relational() {
+  Node* node = add();
 
   for(;;) {
-    if(consume(tokens, TK_LE)) node = new_node(ND_LE, node, add(tokens, map));
-    else if (consume(tokens, TK_GE)) node = new_node(ND_LE, add(tokens, map), node);
-    else if (consume(tokens, '<')) node = new_node('<', node, add(tokens, map));
-    else if (consume(tokens, '>')) node = new_node('<', add(tokens, map), node);
+    if(consume(TK_LE)) node = new_node(ND_LE, node, add());
+    else if (consume(TK_GE)) node = new_node(ND_LE, add(), node);
+    else if (consume('<')) node = new_node('<', node, add());
+    else if (consume('>')) node = new_node('<', add(), node);
     else return node;
   }
 }
 
-Node* equality(Vector* tokens, Map* map) {
-  Node* node = relational(tokens, map);
+Node* equality() {
+  Node* node = relational();
 
   for(;;){
-    if (consume(tokens, TK_EQ)) node = new_node(ND_EQ, node, relational(tokens, map));
-    else if (consume(tokens, TK_NE)) node = new_node(ND_NE, node, relational(tokens, map));
+    if (consume(TK_EQ)) node = new_node(ND_EQ, node, relational());
+    else if (consume(TK_NE)) node = new_node(ND_NE, node, relational());
     else return node;
   }
 }
 
-Node* assign(Vector* tokens, Map* map) {
-  Node* node = equality(tokens, map);
+Node* assign() {
+  Node* node = equality();
 
-  while(consume(tokens, '='))
-    node = new_node('=', node, assign(tokens, map));
+  while(consume('='))
+    node = new_node('=', node, assign());
   
   return node;
 }
 
-Node* block_items(Vector* tokens, Map* map) {
+Node* block_items() {
   Node* node = malloc(sizeof(Node));
   node->block_stmt = new_vector();
   Token* token = tokens->data[pos];
   node->type = ND_BLOCK;
 
   while(token->type != '}') {
-    vec_push(node->block_stmt, stmt(tokens, map));
+    vec_push(node->block_stmt, stmt());
     token = tokens->data[pos];
   }
 
   return node;
 }
 
-Node* essential_stmt(Vector* tokens, Map* map) {
+Node* essential_stmt() {
   Node* node = NULL;
  
-  if (consume(tokens, TK_RETURN)) {
+  if (consume(TK_RETURN)) {
     node = malloc(sizeof(Node));
     node->type = ND_RETURN;
-    node->lhs = assign(tokens, map);
+    node->lhs = assign();
 
   } else {
-    node = assign(tokens, map);
+    node = assign();
   }
 
-  if(!consume(tokens, ';')){
+  if(!consume(';')){
     fprintf(stderr, "';'ではないトークンです\n");
-    error(tokens, pos);
+    error(pos);
   }
 
   return node;
 }
  
-Node* block(Vector* tokens, Map* map) {
+Node* block() {
   Node* node = NULL;
-  if (consume(tokens, '{')) {
-    node = block_items(tokens, map);
-    if (!consume(tokens, '}')) {
+  if (consume('{')) {
+    node = block_items();
+    if (!consume('}')) {
       fprintf(stderr, "開きかっこに対応する閉じかっこがありません:ブロック\n");
-      error(tokens, pos);
+      error(pos);
     }
 
     return node;
 
   }
 
-  return essential_stmt(tokens, map);
+  return essential_stmt();
 }
 
-Node* stmt(Vector* tokens, Map* map) {
+Node* stmt() {
   Node* node = NULL;
-  if (consume(tokens, TK_FOR)) {
-    if (consume(tokens, '(')) {
+  if (consume(TK_FOR)) {
+    if (consume('(')) {
       node = malloc(sizeof(Node));
       node->type = ND_FOR;
 
-      node->lhs = assign(tokens, map);
-      if(!consume(tokens, ';')){
+      node->lhs = assign();
+      if(!consume(';')){
         fprintf(stderr, "';'ではないトークンです:forの一つ目\n");
-        error(tokens, pos);
+        error(pos);
       }
 
-      node->condition = assign(tokens, map);
-      if(!consume(tokens, ';')){
+      node->condition = assign();
+      if(!consume(';')){
         fprintf(stderr, "';'ではないトークンです:forの二つ目\n");
-        error(tokens, pos);
+        error(pos);
       }
 
-      node->increment = assign(tokens, map);
-      if (!consume(tokens, ')')) {
+      node->increment = assign();
+      if (!consume(')')) {
         fprintf(stderr, "開きかっこに対応する閉じかっこがありません:for\n");
-        error(tokens, pos);
+        error(pos);
       }
     
-      node->rhs = block(tokens, map);
+      node->rhs = block();
       return node;
     }
 
     fprintf(stderr, "forの直後に開きかっこがありません\n");
-    error(tokens, pos);
+    error(pos);
 
-  } else if (consume(tokens, TK_IF)) {
-    if (consume(tokens, '(')) {
+  } else if (consume(TK_IF)) {
+    if (consume('(')) {
       node = malloc(sizeof(Node));
       node->type = ND_IF_WITHOUT_ELSE;
-      node->condition = equality(tokens, map);
+      node->condition = equality();
 
-      if (!consume(tokens, ')')) {
+      if (!consume(')')) {
         fprintf(stderr, "開きかっこに対応する閉じかっこがありません:if\n");
-        error(tokens, pos);
+        error(pos);
       }
     
-      node->lhs = block(tokens, map);
+      node->lhs = block();
 
-      if(consume(tokens, TK_ELSE)) {
+      if(consume(TK_ELSE)) {
         node->type = ND_IF_WITH_ELSE;
-        node->rhs = block(tokens, map);
+        node->rhs = block();
       }
 
       return node;
     }
 
     fprintf(stderr, "whileの後の開きかっこがありません\n");
-    error(tokens, pos);
+    error(pos);
  
-  } else if (consume(tokens, TK_WHILE)) {
-    if (consume(tokens, '(')) {
+  } else if (consume(TK_WHILE)) {
+    if (consume('(')) {
       node = malloc(sizeof(Node));
       node->type = ND_WHILE;
-      node->lhs = equality(tokens, map);
+      node->lhs = equality();
 
-      if (!consume(tokens, ')')) {
+      if (!consume(')')) {
         fprintf(stderr, "開きかっこに対応する閉じかっこがありません:while\n");
-        error(tokens, pos);
+        error(pos);
       }
     
-      node->rhs = block(tokens, map);
+      node->rhs = block();
       return node;
     }
 
     fprintf(stderr, "whileの後の開きかっこがありません\n");
-    error(tokens, pos);
+    error(pos);
 
   }
 
-  return essential_stmt(tokens, map);
+  return essential_stmt();
 }
 
-void program(Vector* tokens, Map* map) {
+void program() {
   int i = 0;
   Token* token = tokens->data[pos];
 
   while(token->type != TK_EOF){
-    code[i++] = stmt(tokens, map);
+    code[i++] = stmt();
     token = tokens->data[pos];
   }
 

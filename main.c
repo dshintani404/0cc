@@ -2,6 +2,8 @@
 
 int pos = 0;
 Node* code[100];
+Map* map;
+Vector* tokens;
 
 int main(int argc, char **argv) {
 	if (argc != 2){
@@ -14,11 +16,11 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-	Vector* tokens = new_vector();
-  Map* map = new_map();
-  tokenize(tokens, argv[1]);
+	tokens = new_vector();
+  map = new_map();
+  tokenize(argv[1]);
  
-  program(tokens, map);
+  program();
 
 	printf(".intel_syntax noprefix\n");
 	printf(".global _main\n");
@@ -29,7 +31,7 @@ int main(int argc, char **argv) {
   printf("  sub rsp, 208\n");  
   
   for(int i=0; code[i]; i++) {
-    gen(code[i], map);
+    gen(code[i]);
     printf("  pop rax\n");
   }
   
