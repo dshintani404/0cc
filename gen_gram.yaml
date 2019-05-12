@@ -1,0 +1,63 @@
+def_func: 
+  - func_name “(” func_args “)” program
+
+program: 
+  - stmt program
+  - ε 
+
+stmt:
+  - “while” "(" equality ")" block
+  - “for” "(" assign “;” assign “;” assign ")" block
+  - “if” “(” “)” block else block
+  - “if” “(” “)” block
+  - essential_stmt
+
+block:
+  - essential_stmt
+  - "{" block_items "}"
+
+essential_stmt:
+  - "return" assign ";"
+  - assign ";"
+
+block_items:
+  - stmt
+  - stmt block_items
+
+assign:
+  - equality
+  - equality "=" assign
+
+equality:
+  - relational
+  - equality "==" relational
+  - equality "!=" relational
+
+relational:
+  - add
+  - relational "<" add
+  - relational "<=" add
+  - relational ">" add
+  - relational ">=" add
+
+add:
+  - mul
+  - add "+" mul
+  - add "-" mul
+
+mul:
+  - unary
+  - mul "*" unary
+  - mul "/" unary
+
+unary:
+  - term
+  - "+" term
+  - "-" term
+
+term:
+  - num
+  - ident
+  - "(" assign ")"
+  - func “(” ”)”  token = tokens->data[pos];
+

@@ -51,5 +51,7 @@ try "5" "a=3;if(a==3) return a+2;"
 try "6" "a=3;if (a==2) return 2;else return a+3;"
 try "5" "a=2;if (a==2) {a=a+3; return a;}"
 try "5" "a=2;b=3;if (a==2) {a=a+b; return a;}"
+try "3" "main(){return 3;}"
+try "5" "fib(a){if(a==0) return 0; if(1) return 1; return fib(a-1)+fib(a-2);} main(){return fib(5)};"
 
 echo OK
