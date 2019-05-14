@@ -2,6 +2,7 @@
 
 Node* assign();
 Node* stmt();
+Node* equality();
 
 int val_num = 0;
 
@@ -91,20 +92,9 @@ Node* term(){
     Vector* args = new_vector();
     if(consume(')')) return new_node_func(func_name, args);
     
-    token = (Token*)tokens->data[pos];
-    while (token->type == TK_NUM) {
-      vec_push(args, (void*)(size_t)token->value);
-      pos++;
-      token = (Token*)tokens->data[pos];
-      if(token->type == ',') {
-        pos++;
-        token = (Token*)tokens->data[pos];
-      }
-    }
-
-    if(!consume(')')) {
-      fprintf(stderr, "開きかっこに対応する閉じかっこがありません：関数\n");
-      error(pos);
+    while (!consume(')')) {
+      vec_push(args, (void*)equality());
+      consume(',');
     }
     
     return new_node_func(func_name, args);
@@ -123,7 +113,7 @@ Node* unary() {
   return term();
 }
 
-Node* mul(){
+Node* mul() {
   Node* node = unary();
 
   for(;;){
@@ -133,7 +123,7 @@ Node* mul(){
   }
 }
 
-Node* add(){
+Node* add() {
   Node* node = mul();
   
   for(;;){
@@ -225,10 +215,9 @@ Node* block() {
 }
 
 Node* stmt() {
-  Node* node = NULL;
+  Node* node = malloc(sizeof(Node));
   if (consume(TK_FOR)) {
     if (consume('(')) {
-      node = malloc(sizeof(Node));
       node->type = ND_FOR;
 
       node->lhs = assign();
@@ -258,7 +247,6 @@ Node* stmt() {
 
   } else if (consume(TK_IF)) {
     if (consume('(')) {
-      node = malloc(sizeof(Node));
       node->type = ND_IF_WITHOUT_ELSE;
       node->condition = equality();
 
@@ -282,9 +270,8 @@ Node* stmt() {
  
   } else if (consume(TK_WHILE)) {
     if (consume('(')) {
-      node = malloc(sizeof(Node));
       node->type = ND_WHILE;
-      node->lhs = equality();
+      node->lhs = assign();
 
       if (!consume(')')) {
         fprintf(stderr, "開きかっこに対応する閉じかっこがありません:while\n");
@@ -303,18 +290,75 @@ Node* stmt() {
   return essential_stmt();
 }
 
-void program() {
-  int i = 0;
+Node* def_func() {
+  Node* node = malloc(sizeof(Node));
   Token* token = tokens->data[pos];
 
-  while(token->type != TK_EOF){
-    code[i++] = stmt();
-    token = tokens->data[pos];
+  if (token->type == TK_FUNC) {
+    node->type = ND_DEFFUNC;
+    node->name = token->name;
+    pos++;
+
+    if (!consume('(')) {
+      fprintf(stderr, "関数定義の開きかっこがありません\n");
+      error(pos);
+    }
+
+    Vector* args = new_vector();
+    
+    token = (Token*)tokens->data[pos];
+    while (token->type == TK_IDENT) {
+      vec_push(args, (void*)token->name);
+      pos++;
+      token = (Token*)tokens->data[pos];
+      
+      if(token->type == ',') {
+        pos++;
+        token = (Token*)tokens->data[pos];
+      }
+    }
+
+    node->args = args; 
+
+    if(!consume(')')) {
+      fprintf(stderr, "開きかっこに対応する閉じかっこがありません：関数定義\n");
+      error(pos);
+    }
+
   }
 
-  code[i] = NULL;
+  return node; 
 }
 
+void program(){
+  int i = 0;
+  int j;
+  Token* token = tokens->data[pos];
 
+  while (token->type != TK_EOF) {
+    code[i][0] = def_func();
+    token = tokens->data[pos];
 
+    j = 1;
+    if (!consume('{')) {
+      fprintf(stderr, "開き中かっこがありません：関数定義\n");
+      error(pos);
+    }
+
+    while (token->type != '}') {
+      if(token->type == TK_EOF) {
+        fprintf(stderr, "関数定義の最後のかっこがありません\n");
+        error(pos);
+      }
+
+      code[i][j++] = stmt();
+      token = tokens->data[pos];
+    }
+
+    token = tokens->data[++pos];
+    i++;
+  }
+
+  code[i][j] = NULL;
+}
 

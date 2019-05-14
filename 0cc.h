@@ -12,7 +12,8 @@ enum {
 enum {
   ND_NUM = 256,
   ND_EQ, ND_NE, ND_LE, ND_IDENT, ND_RETURN,
-  ND_WHILE, ND_FOR, ND_IF_WITH_ELSE, ND_IF_WITHOUT_ELSE, ND_BLOCK, ND_FUNC
+  ND_WHILE, ND_FOR, ND_IF_WITH_ELSE, ND_IF_WITHOUT_ELSE,
+  ND_BLOCK, ND_FUNC, ND_DEFFUNC, ND_FUNCSTMT
 };
 
 typedef struct {
@@ -33,11 +34,12 @@ typedef struct Node {
   struct Node* lhs;
   struct Node* rhs;
   int value; // numbers
-  char* name; // variables
+  char* name; // variables, func
   struct Node* condition; // for, if
   struct Node* increment; // for
   Vector* block_stmt;
   Vector* args; // func
+  Vector* func_stmt; // func_def
 } Node;
 
 typedef struct {
@@ -45,7 +47,7 @@ typedef struct {
   Vector* vals;
 } Map;
 
-extern Node* code[100];
+extern Node* code[10][100];
 extern int pos;
 extern Map* map;
 extern Vector* tokens;

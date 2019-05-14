@@ -110,11 +110,8 @@ void tokenize(char* p){
         p++;
       }
 
-      if(*p == '(') {
-        token->type = TK_FUNC;
-      } else {
-        token->type = TK_IDENT;
-      }
+      if(*p == '(') token->type = TK_FUNC;
+      else token->type = TK_IDENT;
 
       token->name = malloc(sizeof(char)*cnt);
       strncpy(token->name, p-cnt, cnt);

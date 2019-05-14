@@ -1,6 +1,9 @@
 #include"0cc.h"
 
 int stackpoint = 0;
+int cnt_lend = 0;
+int cnt_lelse = 0;
+int cnt_lbegin = 0;
 
 void gen_lval(Node* node) {
   if (node->type != ND_IDENT){
@@ -17,76 +20,128 @@ void gen_lval(Node* node) {
 }
 
 void gen(Node* node){
+  char args_reg[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+
+  if(node->type == ND_DEFFUNC) {
+    stackpoint = 0;
+    int offset;
+
+    printf("_%s:\n", node->name);
+    printf("  push rbp\n");
+    printf("  mov rbp, rsp\n");
+    printf("  sub rsp, 160\n");
+
+    for(int i=0; i< node->args->len; i++) {
+      offset = (int)map_get(map, node->args->data[i]);
+   
+      printf("  mov rax, rbp\n");
+      printf("  sub rax, %d\n", offset);
+      printf("  mov [rax], %s\n", args_reg[i]);
+      printf("  push rdi\n");
+      
+      stackpoint += 8;
+    }
+
+    return;
+  }
+
   if (node->type == ND_BLOCK) {
     for(int i=0;i<node->block_stmt->len;i++) {
       gen(node->block_stmt->data[i]);
     }
+    
     return;
   }
 
   if (node->type == ND_IF_WITHOUT_ELSE) {
+    char end_buff[10];
+    sprintf(end_buff, "%d", cnt_lend);
+
     gen(node->condition);
-    printf("    pop rax\n");
-    printf("    cmp rax, 0\n");
-    printf("    je .LendXXX\n");
+    printf("  pop rax\n");
+    printf("  cmp rax, 0\n");
+    printf("  je .Lend%s\n", end_buff);
     gen(node->lhs);
-    printf("  .LendXXX:\n");
-    
+    printf("  .Lend%s:\n", end_buff);
+
     stackpoint -= 8;
+    cnt_lend++;
     return;
   }
 
   if (node->type == ND_IF_WITH_ELSE) {
-    gen(node->condition);
-    printf("    pop rax\n");
-    printf("    cmp rax, 0\n");
-    printf("    je .LelseXXX\n");
-    gen(node->lhs);
-    printf("    jmp .LendXXX\n");
-    printf("  .LelseXXX:\n");
-    gen(node->rhs);
-    printf("  .LendXXX:\n");
+    char else_buff[10];
+    char end_buff[10];
+    sprintf(else_buff, "%d", cnt_lelse);
+    sprintf(end_buff, "%d", cnt_lend);
 
+    gen(node->condition);
+    printf("  pop rax\n");
+    printf("  cmp rax, 0\n");
+
+    printf("  je .Lelse%s\n", else_buff);
+    gen(node->lhs);
+    printf("  jmp .Lend%s\n", end_buff);
+    printf("  .Lelse%s:\n", else_buff);
+    gen(node->rhs);
+    printf("  .Lend%s:\n", end_buff);
+    
     stackpoint -= 8;
+    cnt_lelse++;
+    cnt_lend++;
     return;
   }
 
   if(node->type == ND_FOR) {
+    char begin_buff[10];
+    char end_buff[10];
+    sprintf(begin_buff, "%d", cnt_lbegin);
+    sprintf(end_buff, "%d", cnt_lend);
+
     gen(node->lhs);
-    printf("  .LbeginXXX:\n");
+    printf("  .Lbegin%s:\n", begin_buff);
     gen(node->condition);
-    printf("    pop rax\n");
-    printf("    cmp rax, 0\n");
-    printf("    je .LendXXX\n");
+    printf("  pop rax\n");
+    printf("  cmp rax, 0\n");
+    printf("  je .Lend%s\n", end_buff);
     gen(node->rhs);
     gen(node->increment);
-    printf("    jmp .LbeginXXX\n");
-    printf("  .LendXXX:\n");
+    printf("  jmp .Lbegin%s\n", begin_buff);
+    printf("  .Lend%s:\n", end_buff);
 
     stackpoint -= 8;
+    cnt_lbegin++;
+    cnt_lend++;
     return;
   }
 
   if(node->type == ND_WHILE) {
-    printf("  .LbeginXXX:\n");
+    char begin_buff[10];
+    char end_buff[10];
+    sprintf(begin_buff, "%d", cnt_lbegin);
+    sprintf(end_buff, "%d", cnt_lend);
+
+    printf("  .Lbegin%s:\n", begin_buff);
     gen(node->lhs);
-    printf("    pop rax\n");
-    printf("    cmp rax, 0\n");
-    printf("    je .LendXXX\n");
+    printf("  pop rax\n");
+    printf("  cmp rax, 0\n");
+    printf("  je .Lend%s\n", end_buff);
     gen(node->rhs);
-    printf("    jmp .LbeginXXX\n");
-    printf("  .LendXXX:\n");
+    printf("  jmp .Lbegin%s\n", begin_buff);
+    printf("  .Lend%s:\n", end_buff);
 
     stackpoint -= 8;
+    cnt_lend++;
+    cnt_lbegin++;
     return;
   }
 
   if(node->type == ND_RETURN) {
     gen(node->lhs);
     printf("  pop rax\n");
-    printf("  mov rsp, rbp\n");
-    printf("  pop rbp\n");
+    printf("  leave\n");
     printf("  ret\n");
+    stackpoint -= 8;
     return;
   }
 
@@ -105,17 +160,20 @@ void gen(Node* node){
     return;
   }
 
-  if(node->type == ND_FUNC){
-    if (node->args->len > 0) {
-      printf("  mov rdi, %d\n", (int)node->args->data[0]);
-      if (node->args->len > 1) {
-        printf("  mov rsi, %d\n", (int)node->args->data[1]);
-      }
+  if (node->type == ND_FUNC){
+    for (int i=0; i< node->args->len; i++) {
+      gen((Node*)node->args->data[i]);
+      printf("  pop rax\n");
+      printf("  mov %s, rax\n", args_reg[i]);
+      stackpoint -=8;
     }
-
+    
     if(stackpoint % 16 != 0) printf("  sub rsp, 8\n");
-
     printf("  call _%s\n", node->name);
+    stackpoint = -8;
+
+    printf("  push rax\n");
+    stackpoint -= 8;
     return;
   }
 

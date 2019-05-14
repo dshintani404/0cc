@@ -1,15 +1,20 @@
-def_func: 
-  - func_name “(” func_args “)” program
+program:
+  - def_func program
+  - NULL
 
-program: 
-  - stmt program
-  - ε 
+def_func: 
+  - func_name “(” func_args “)”
+  - func_name “(” func_args “)” "{" program "}"
+
+sentence: 
+  - stmt sentence
+  - stmt
 
 stmt:
-  - “while” "(" equality ")" block
+  - “while” "(" assign ")" block
   - “for” "(" assign “;” assign “;” assign ")" block
-  - “if” “(” “)” block else block
-  - “if” “(” “)” block
+  - “if” “(” assign “)” block else block
+  - “if” “(” assign “)” block
   - essential_stmt
 
 block:
@@ -59,5 +64,5 @@ term:
   - num
   - ident
   - "(" assign ")"
-  - func “(” ”)”  token = tokens->data[pos];
+  - func 
 
