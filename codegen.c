@@ -6,31 +6,27 @@ int cnt_lelse = 0;
 int cnt_lbegin = 0;
 
 void gen_lval(Node* node) {
-  if (node->type != ND_IDENT){
-    fprintf(stderr, "代入の左辺値が変数ではありません\n");
-    exit(1);
+  if (node->type == ND_DEREF) gen(node->expr);
+  else {
+    int offset = (int)map_get(map, node->name);
+    printf("  mov rax, rbp\n");
+    printf("  sub rax, %d\n", offset);
+    printf("  push rax\n");
+    stackpoint += 8;
   }
-
-  int offset = (int)map_get(map, node->name);
-  printf("  mov rax, rbp\n");
-  printf("  sub rax, %d\n", offset);
-  printf("  push rax\n");
-  
-  stackpoint += 8;
 }
 
 void gen(Node* node){
   char args_reg[6][4] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
-  if(node->type == ND_DEFFUNC) {
+  if (node->type == ND_DEFFUNC) {
     stackpoint = 0;
-    int offset;
-
     printf("_%s:\n", node->name);
     printf("  push rbp\n");
     printf("  mov rbp, rsp\n");
     printf("  sub rsp, 160\n");
 
+    int offset;
     for(int i=0; i< node->args->len; i++) {
       offset = (int)map_get(map, node->args->data[i]);
    
@@ -46,10 +42,7 @@ void gen(Node* node){
   }
 
   if (node->type == ND_BLOCK) {
-    for(int i=0;i<node->block_stmt->len;i++) {
-      gen(node->block_stmt->data[i]);
-    }
-    
+    for(int i=0;i<node->block_stmt->len;i++) gen(node->block_stmt->data[i]);
     return;
   }
 
@@ -147,7 +140,6 @@ void gen(Node* node){
 
   if(node->type == ND_NUM){
     printf("  push %d\n", node->value);
-
     stackpoint += 8;
     return;
   }
@@ -174,6 +166,20 @@ void gen(Node* node){
 
     printf("  push rax\n");
     stackpoint -= 8;
+    return;
+  }
+
+  if (node->type == ND_ADDR) {
+    gen_lval(node->expr);
+    return;
+  }
+
+  if (node->type == ND_DEREF) {
+    gen_lval(node->expr);
+    printf("  pop rax\n");
+    printf("  mov rax, [rax]\n");
+    printf("  mov rax, [rax]\n");
+    printf("  push rax\n");
     return;
   }
 

@@ -15,7 +15,7 @@ enum {
   ND_EQ, ND_NE, ND_LE, ND_IDENT, ND_RETURN,
   ND_WHILE, ND_FOR, ND_IF_WITH_ELSE, ND_IF_WITHOUT_ELSE,
   ND_BLOCK, ND_FUNC, ND_DEFFUNC, ND_FUNCSTMT,
-  ND_INT
+  ND_INT, ND_DEREF, ND_ADDR
 };
 
 typedef struct {
@@ -35,6 +35,7 @@ typedef struct Node {
   int type;
   struct Node* lhs;
   struct Node* rhs;
+  struct Node* expr;
   int value; // numbers
   char* name; // variables, func
   struct Node* condition; // for, if
@@ -45,9 +46,15 @@ typedef struct Node {
   int dtype; // data type for func and var
 } Node;
 
+typedef struct Type {
+  enum {INT, PTR} type;
+  struct Type* pointer_of;
+} Type;
+
 typedef struct {
   Vector* keys;
   Vector* vals;
+  Vector* types;
 } Map;
 
 extern Node* code[10][100];
@@ -62,8 +69,9 @@ Vector* new_vector();
 void vec_push(Vector* vec, void* elem);
 
 Map* new_map();
-void map_put(Map* map, char* key, void* val);
+void map_put(Map* map, char* key, void* val, Type* type);
 void* map_get(Map* map, char* key);
+void* map_get_type(Map* map, char* key);
 
 void tokenize(char* p);
 void program();

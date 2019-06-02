@@ -20,18 +20,27 @@ Map* new_map() {
   Map* map = malloc(sizeof(Map));
   map->keys = new_vector();
   map->vals = new_vector();
+  map->types = new_vector();
   return map;
 }
 
-void map_put(Map* map, char* key, void* val) {
+void map_put(Map* map, char* key, void* val, Type* type) {
   vec_push(map->keys, key);
   vec_push(map->vals, val);
+  vec_push(map->types, type);
 }
 
 void* map_get(Map* map, char* key) {
   for (int i = map->keys->len - 1; i >= 0; i--)
     if (strcmp(map->keys->data[i], key) == 0)
       return map->vals->data[i];
+  return NULL;
+}
+
+void* map_get_type(Map* map, char* key) {
+  for (int i = map->keys->len - 1; i >= 0; i--)
+    if (strcmp(map->keys->data[i], key) == 0)
+      return map->types->data[i];
   return NULL;
 }
 

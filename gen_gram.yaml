@@ -59,11 +59,12 @@ unary:
   - term
   - "+" term
   - "-" term
-
+  - "&" term 
+  - "*" term
 term:
   - num
   - "int" ident
   - ident
   - "(" assign ")"
-  - func 
+  - func
 

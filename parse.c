@@ -4,7 +4,7 @@ Node* assign();
 Node* stmt();
 Node* equality();
 
-int val_num = 0;
+int val_num;
 
 void error(char* message) {
   Token* token = (Token*)tokens->data[pos];
@@ -22,8 +22,6 @@ int consume(int type){
 
 Node* new_node(int type, Node* lhs, Node* rhs) {
   Node* node = malloc(sizeof(Node));
-  if (node == NULL) return node;
-    
   node->type = type;
   node->lhs = lhs;
   node->rhs = rhs;
@@ -32,69 +30,80 @@ Node* new_node(int type, Node* lhs, Node* rhs) {
 
 Node* new_node_num(int value) {
   Node* node = malloc(sizeof(Node));
-  if (node == NULL) return node;
-    
   node->type = ND_NUM;
   node->value = value;
   return node;
 }
 
-Node* new_node_defvar(char* name) {
-  void* offset = map_get(map, name);
-  if (offset == NULL) {
-    val_num++;
-    map_put(map, name, (void*)(size_t)(val_num * 8));
-  } else {
-    map_put(map, name, offset);
-  }
-
+Node* new_node_defvar(char* name, Type* type) {
   Node* node = malloc(sizeof(Node));
-  if (node == NULL) return node;
-  
   node->type = ND_IDENT;
   node->name = name;
+
+  void* offset = map_get(map, name);
+
+  if (offset == NULL) {
+    val_num++;
+    map_put(map, name, (void*)(size_t)(val_num * 8), type);
+  } else {
+    map_put(map, name, offset, type);
+  }
+
   return node;
 }
-
 
 Node* new_node_var(char* name) {
   void* offset = map_get(map, name);
   if (offset == NULL) error("未定義の変数です");
-  
-  map_put(map, name, offset);
+
+  void* type = map_get_type(map, name);
+  if (type == NULL) error("変数型が未定義です");
+
+  map_put(map, name, offset, type);
 
   Node* node = malloc(sizeof(Node));
-  if (node == NULL) return node;
-  
   node->type = ND_IDENT;
   node->name = name;
+
   return node;
 }
 
 Node* new_node_func(char* name, Vector* args) {
   Node* node = malloc(sizeof(Node));
-  if (node == NULL) return node;
-    
   node->type = ND_FUNC;
   node->name = name;
   node->args = args; 
   return node;
 }
 
+Type* ptr_to(Type* base) {
+  Type* type = malloc(sizeof(Type));
+  type->type = PTR;
+  type->pointer_of = base;
+  return type;
+}
+
 Node* term(){
   Node* node;
   if (consume('(')) {
     node = assign();
-
     if (!consume(')')) error("開きかっこに対応する閉じかっこがありません");
-    
     return node;
   }
 
   Token* token;
-  if(consume(TK_INT)) {
+
+  if (consume(TK_INT)) {
+    Type* type = malloc(sizeof(Type));
+    type->type = INT;
+    type->pointer_of = NULL;
+
+    while(consume('*')) {
+      type = ptr_to(type);
+    }
+
     token = (Token*)tokens->data[pos++];
-    if (token->type == TK_IDENT) return new_node_defvar(token->name);
+    if (token->type == TK_IDENT) return new_node_defvar(token->name, type);
     else error("宣言の後の変数がありません");
   }
 
@@ -120,12 +129,21 @@ Node* term(){
   error("数値・変数・かっこ・関数以外のトークンです");
 
   // ダミーの返り値で、実際には使われない
-  return node = NULL;
+  return NULL;
+}
+
+Node* new_expr(int type, Node* expr) {
+  Node* node = malloc(sizeof(Node));
+  node->type = type;
+  node->expr = expr;
+  return node;
 }
 
 Node* unary() {
   if(consume('+')) return term();
   if(consume('-')) return new_node('-', new_node_num(0), term());
+  if(consume('*')) return new_expr(ND_DEREF, unary());
+  if(consume('&')) return new_expr(ND_ADDR, unary());
   return term();
 }
 
@@ -200,7 +218,6 @@ Node* essential_stmt() {
     node = malloc(sizeof(Node));
     node->type = ND_RETURN;
     node->lhs = assign();
-
   } else {
     node = assign();
   }
@@ -300,11 +317,15 @@ Node* def_func() {
     
   token = (Token*)tokens->data[pos];
   while (token->type == TK_INT) {
+    Type* type = malloc(sizeof(Type));
+    type->type = INT;
+    type->pointer_of = NULL;
+
     token = (Token*)tokens->data[++pos];
     if(token->type != TK_IDENT) error("引数の型の後に変数がありません");
     
     val_num++;
-    map_put(map, token->name, (void*)(size_t)(val_num * 8));
+    map_put(map, token->name, (void*)(size_t)(val_num * 8), (void*)type);
 
     vec_push(args, (void*)token->name);
     token = (Token*)tokens->data[++pos];
@@ -325,6 +346,7 @@ void program(){
   Token* token = tokens->data[pos];
 
   while (token->type != TK_EOF) {
+    val_num = 0;
     code[i][0] = def_func();
     token = tokens->data[pos];
     
