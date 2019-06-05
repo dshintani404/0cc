@@ -31,6 +31,11 @@ typedef struct {
   int len;
 } Vector;
 
+typedef struct Type {
+  enum {INT, PTR} type;
+  struct Type* pointer_of;
+} Type;
+
 typedef struct Node {
   int type;
   struct Node* lhs;
@@ -43,13 +48,8 @@ typedef struct Node {
   Vector* block_stmt;
   Vector* args; // func
   Vector* func_stmt; // func_def
-  int dtype; // data type for func and var
+  Type* dtype; // data type for func and var
 } Node;
-
-typedef struct Type {
-  enum {INT, PTR} type;
-  struct Type* pointer_of;
-} Type;
 
 typedef struct {
   Vector* keys;
@@ -71,8 +71,10 @@ void vec_push(Vector* vec, void* elem);
 Map* new_map();
 void map_put(Map* map, char* key, void* val, Type* type);
 void* map_get(Map* map, char* key);
-void* map_get_type(Map* map, char* key);
+Type* map_get_type(Map* map, char* key);
 
 void tokenize(char* p);
 void program();
+void sema();
+
 void runtest();

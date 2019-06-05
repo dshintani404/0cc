@@ -18,9 +18,10 @@ int main(int argc, char **argv) {
   
   tokens = new_vector();
   map = new_map();
+
   tokenize(argv[1]);
- 
   program();
+  sema();
 
   printf(".intel_syntax noprefix\n");
   printf(".global ");

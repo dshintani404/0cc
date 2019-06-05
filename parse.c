@@ -39,6 +39,7 @@ Node* new_node_defvar(char* name, Type* type) {
   Node* node = malloc(sizeof(Node));
   node->type = ND_IDENT;
   node->name = name;
+  node->dtype = type;
 
   void* offset = map_get(map, name);
 
@@ -56,7 +57,7 @@ Node* new_node_var(char* name) {
   void* offset = map_get(map, name);
   if (offset == NULL) error("未定義の変数です");
 
-  void* type = map_get_type(map, name);
+  Type* type = map_get_type(map, name);
   if (type == NULL) error("変数型が未定義です");
 
   map_put(map, name, offset, type);
@@ -64,6 +65,7 @@ Node* new_node_var(char* name) {
   Node* node = malloc(sizeof(Node));
   node->type = ND_IDENT;
   node->name = name;
+  node->dtype = type;
 
   return node;
 }
@@ -303,7 +305,6 @@ Node* def_func() {
 
   if (!consume(TK_INT)) error("型がありません：関数定義");
   
-  node->dtype = ND_INT;
   Token* token = tokens->data[pos++];
     
   if (token->type != TK_FUNC) error("関数定義がありません");
