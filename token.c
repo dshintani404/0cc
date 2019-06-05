@@ -13,6 +13,14 @@ void tokenize(char* p){
 			continue;
 		}
 
+    if (strncmp(p, "sizeof", 6) == 0 && !is_alnum(p[6])) {
+      token->type = TK_SIZEOF;
+      token->input = p;
+      vec_push(tokens, token);
+      p = p + 6;
+      continue;
+    }
+
     if (strncmp(p, "int", 3) == 0 && !is_alnum(p[3])) {
       token->type = TK_INT;
       token->input = p;

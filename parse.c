@@ -25,13 +25,19 @@ Node* new_node(int type, Node* lhs, Node* rhs) {
   node->type = type;
   node->lhs = lhs;
   node->rhs = rhs;
+  node->dtype = lhs->dtype;
   return node;
 }
 
 Node* new_node_num(int value) {
+  Type* type = malloc(sizeof(Type));
+  type->type = INT;
+  type->pointer_of = NULL;
+
   Node* node = malloc(sizeof(Node));
   node->type = ND_NUM;
   node->value = value;
+  node->dtype = type;
   return node;
 }
 
@@ -112,7 +118,7 @@ Node* term(){
   token = (Token*)tokens->data[pos++];
   if (token->type == TK_IDENT) return new_node_var(token->name);
   if (token->type == TK_NUM) return new_node_num(token->value);
-  
+
   if (token->type == TK_FUNC) {
     char* func_name = token->name;
     if (!consume('(')) error("関数の開きかっこがありません");
@@ -138,14 +144,27 @@ Node* new_expr(int type, Node* expr) {
   Node* node = malloc(sizeof(Node));
   node->type = type;
   node->expr = expr;
+  if(type == ND_DEREF) {
+    Type* type = malloc(sizeof(Type));
+    type->type = INT;
+    type->pointer_of = NULL;
+    node->dtype = type;
+  } 
+
   return node;
 }
 
 Node* unary() {
   if(consume('+')) return term();
   if(consume('-')) return new_node('-', new_node_num(0), term());
-  if(consume('*')) return new_expr(ND_DEREF, unary());
-  if(consume('&')) return new_expr(ND_ADDR, unary());
+  if(consume('*')) return new_expr(ND_DEREF, term());
+  if(consume('&')) return new_expr(ND_ADDR, term());
+
+  if(consume(TK_SIZEOF)) {
+    if(term()->dtype->type == INT) return new_node_num(4);
+    else return new_node_num(8);
+  }
+
   return term();
 }
 

@@ -62,5 +62,11 @@ try "55" "int fib(int a){if(a==0)return 0;if(a==1)return 1;return fib(a-1)+fib(a
 try "7" "int main() {int x; x= 7; int* y; y = &x; return *y;}"
 try "7" "int main() {int x; int* y; y = &x; x = 7; return *y;}"
 try "8" "int main() {int x; x = 7; int* y; y = &x; *y = 8; return x;}"
+try "4" "int main() {int x; return sizeof(x);}"
+try "4" "int main() {int x; return sizeof(x+3);}"
+try "8" "int main() {int* x; return sizeof(x);}"
+try "4" "int main() {return sizeof(1);}"
+try "4" "int main() {return sizeof(sizeof(1));}"
+try "4" "int main() {int* x; return sizeof(*x);}"
 
 echo OK

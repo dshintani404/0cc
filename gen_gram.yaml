@@ -61,6 +61,8 @@ unary:
   - "-" term
   - "&" term 
   - "*" term
+  - "sizeof" unary
+
 term:
   - num
   - "int" ident

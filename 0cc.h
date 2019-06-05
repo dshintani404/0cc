@@ -7,7 +7,7 @@ enum {
 	TK_NUM = 256,
   TK_EQ, TK_NE, TK_LE, TK_GE, TK_IDENT, TK_EOF, TK_RETURN,
   TK_WHILE, TK_FOR, TK_IF, TK_ELSE, TK_FUNC,
-  TK_INT
+  TK_INT, TK_SIZEOF
 };
 
 enum {
